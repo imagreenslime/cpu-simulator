@@ -15,7 +15,7 @@ public:
 private:
     static constexpr int NUM_LINES = 64;
     static constexpr int HIT_LATENCY = 1;
-    static constexpr int MISS_LATENCY = 10;
+    static constexpr int MISS_LATENCY = 20;
 
     struct CacheLine {
         bool valid = false;

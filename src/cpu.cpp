@@ -34,7 +34,6 @@ void CPU::run(int max_steps) {
 }
 
 void CPU::step() {
-    printf("MEMSTATE | pending=%d wait=%d\n", (int)mem_pending_, mem_wait_);
 
     printf("\n=== Cycle %lu ===\n", cycle_);
 
@@ -42,12 +41,14 @@ void CPU::step() {
     print_instr("ID",  id_ex_.instr);
     print_instr("EX", id_ex_.instr.valid ? id_ex_.instr : Instruction{});
     print_instr("MEM", ex_mem_.valid ? ex_mem_.instr : Instruction{});
+    print_instr("WB", mem_wb_.valid ? mem_wb_.instr : Instruction{});
 
     // write back stage
     if (mem_wb_.valid && mem_wb_.reg_write) {
         regs_[mem_wb_.rd] = mem_wb_.writeback_value;
         printf("WB | r%d = %d\n", mem_wb_.rd, mem_wb_.writeback_value);
     }
+
     mem_wb_.valid = false;
     EX_MEM  ex_mem_next{};
     MEM_WB  mem_wb_next{};
@@ -111,7 +112,6 @@ void CPU::step() {
         if (!(mem_pending_ && (op == Opcode::LOAD || op == Opcode::STORE))) {
             instr_count_++;
         }
-
         id_ex_.valid = false;   // instruction leaves pipeline
     }
 
@@ -133,12 +133,13 @@ void CPU::step() {
         if_id_.valid = if_id_.instr.valid;
     }
 
-    // MEM stage: move EX result to WB
+    // mem: move EX result to WB
     if (ex_mem_next.valid && ex_mem_next.reg_write) {
         mem_wb_next.valid = true;
         mem_wb_next.rd = ex_mem_next.rd;
         mem_wb_next.writeback_value = ex_mem_next.alu_result;
         mem_wb_next.reg_write = true;
+        mem_wb_next.instr = ex_mem_.instr;
     }
 
     ex_mem_ = ex_mem_next;
@@ -182,7 +183,7 @@ void CPU::execute(EX_MEM& ex_mem_next, MEM_WB& mem_wb_next) {
         if (ex_mem_.rd == instr.rs2) srcB = ex_mem_.alu_result;
         if (ex_mem_.rd == instr.rd) id_ex_.store_val = ex_mem_.alu_result;
     }
-    
+
     printf("EX | srcA=%d srcB=%d\n", srcA, srcB);
     switch (instr.op) {
         case Opcode::ADD: {
@@ -228,6 +229,7 @@ void CPU::execute(EX_MEM& ex_mem_next, MEM_WB& mem_wb_next) {
                 mem_wb_next.rd = instr.rd;
                 mem_wb_next.writeback_value = val;
                 mem_wb_next.reg_write = true;
+                mem_wb_next.instr = ex_mem_.instr;
             } else {
                 // Start a pending memory operation
                 mem_pending_   = true;

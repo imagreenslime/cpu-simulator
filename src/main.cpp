@@ -9,8 +9,6 @@
 
 // THINGS I WANT TO ADD:
 // better cache -> last recently used eviction
-// forwarding unit
-// mem stage
 
 int main() {
 
@@ -18,7 +16,10 @@ int main() {
     printf("hello cpu test\n\n");
 
     std::vector<Instruction> prog = {
-    {Opcode::ADDI, 0, 0, 0, 123}, // illegal write
+    {Opcode::ADDI,  3, 0, 0, 1},  // x0 = 
+    {Opcode::STORE, 3, 1, 0, 0},  // mem[0] = 1
+    {Opcode::LOAD,  1, 0, 0, 0},  // x1 = mem[0]
+    {Opcode::ADD,   2, 1, 1, 0},  // x2 = x1 + x1
     {Opcode::HALT}
     };
 
