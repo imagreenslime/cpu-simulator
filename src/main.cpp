@@ -18,9 +18,7 @@ int main() {
     printf("hello cpu test\n\n");
 
     std::vector<Instruction> prog = {
-    {Opcode::ADDI, 2, 0, 0, 0},
-    {Opcode::STORE, 1, 2, 0, 0},   // miss
-    {Opcode::LOAD,  3, 2, 0, 0},   // taken
+    {Opcode::ADDI, 0, 0, 0, 123}, // illegal write
     {Opcode::HALT}
     };
 
@@ -30,6 +28,9 @@ int main() {
     // === Assertions  ===
 
     printf("All tests passed.\n\n");
+    int32_t val = cpu.mem_word(1);
+    printf("memory[1] = %d\n", val);
+
 
     // === Optional debug dump ===
     printf("Register Dump.\n\n");

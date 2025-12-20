@@ -33,12 +33,12 @@ private:
 
     Instruction fetch();
 
-    void execute(const Instruction& instr);
+    void execute(EX_MEM& ex_mem_next, MEM_WB& mem_wb_next);
     void enforce_x0();
 
     // pipeline stages
     void step();
-        IF_ID if_id_;
+    IF_ID if_id_;
     ID_EX id_ex_;
     EX_MEM ex_mem_;
     MEM_WB mem_wb_;

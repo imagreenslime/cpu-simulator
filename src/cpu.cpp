@@ -41,7 +41,19 @@ void CPU::step() {
     print_instr("IF",  if_id_.instr);
     print_instr("ID",  id_ex_.instr);
     print_instr("EX", id_ex_.instr.valid ? id_ex_.instr : Instruction{});
-    
+    print_instr("MEM", ex_mem_.valid ? ex_mem_.instr : Instruction{});
+
+    // write back stage
+    if (mem_wb_.valid && mem_wb_.reg_write) {
+        regs_[mem_wb_.rd] = mem_wb_.writeback_value;
+        printf("WB | r%d = %d\n", mem_wb_.rd, mem_wb_.writeback_value);
+    }
+    mem_wb_.valid = false;
+    EX_MEM  ex_mem_next{};
+    MEM_WB  mem_wb_next{};
+    ex_mem_next.valid = false;
+    mem_wb_next.valid = false;
+
     // handle memory operations
     if (mem_pending_) {
         printf("MEMWAIT | remaining=%d\n", mem_wait_);
@@ -52,8 +64,13 @@ void CPU::step() {
             printf("MEMDONE | completing %s\n", opcode_to_str(mem_instr_.op));
 
             if (mem_instr_.op == Opcode::LOAD) {
-                regs_[mem_instr_.rd] = mem_load_val_;
-                printf("WB | r%d = %d\n", mem_instr_.rd, (int)mem_load_val_);
+                mem_wb_.valid = true;
+                mem_wb_.rd = mem_instr_.rd;
+                mem_wb_.writeback_value = mem_load_val_;
+                mem_wb_.reg_write = true;
+
+                printf("MEMDONE | load ready for WB r%d = %d\n",
+                    mem_instr_.rd, (int)mem_load_val_);
             }
             instr_count_++;
             mem_pending_ = false;
@@ -63,6 +80,7 @@ void CPU::step() {
         total_cycles_++;
         return;
     }
+
     // handle branch
     if (branch_taken_) {
         printf("FLUSH | branch taken → PC=%d\n", branch_target_);
@@ -89,18 +107,22 @@ void CPU::step() {
     // execute
     if (id_ex_.valid) {
         Opcode op = id_ex_.instr.op;
-
-        execute(id_ex_.instr);
-
+        execute(ex_mem_next, mem_wb_next);
         if (!(mem_pending_ && (op == Opcode::LOAD || op == Opcode::STORE))) {
-        instr_count_++;
+            instr_count_++;
         }
+
         id_ex_.valid = false;   // instruction leaves pipeline
     }
 
     // decode
     if (!stall && if_id_.valid && !id_ex_.valid) {
-        id_ex_.instr = if_id_.instr;
+        const Instruction& in = if_id_.instr;
+
+        id_ex_.instr = in;
+        id_ex_.rs1_val = regs_[in.rs1];
+        id_ex_.rs2_val = regs_[in.rs2];
+        id_ex_.store_val = regs_[in.rd];
         id_ex_.valid = true;
         if_id_.valid = false;
     }
@@ -110,6 +132,17 @@ void CPU::step() {
         if_id_.instr = fetch();
         if_id_.valid = if_id_.instr.valid;
     }
+
+    // MEM stage: move EX result to WB
+    if (ex_mem_next.valid && ex_mem_next.reg_write) {
+        mem_wb_next.valid = true;
+        mem_wb_next.rd = ex_mem_next.rd;
+        mem_wb_next.writeback_value = ex_mem_next.alu_result;
+        mem_wb_next.reg_write = true;
+    }
+
+    ex_mem_ = ex_mem_next;
+    mem_wb_ = mem_wb_next;
 
     cycle_++;           // <-- THIS DEFINES A CLOCK EDGE
     total_cycles_++; 
@@ -135,32 +168,66 @@ Instruction CPU::fetch() {
     return instr;
 }
 
-void CPU::execute(const Instruction& instr) {
+void CPU::execute(EX_MEM& ex_mem_next, MEM_WB& mem_wb_next) {
 
+    const Instruction& instr = id_ex_.instr;
+
+    int32_t srcA = id_ex_.rs1_val;
+    int32_t srcB = id_ex_.rs2_val;
+
+    // EX → EX forwarding (newest)
+    if (ex_mem_.valid && ex_mem_.reg_write && ex_mem_.rd != 0) {
+        printf("EX forwarding | r%d -> %d\n", ex_mem_.rd, ex_mem_.alu_result);
+        if (ex_mem_.rd == instr.rs1) srcA = ex_mem_.alu_result;
+        if (ex_mem_.rd == instr.rs2) srcB = ex_mem_.alu_result;
+        if (ex_mem_.rd == instr.rd) id_ex_.store_val = ex_mem_.alu_result;
+    }
+    
+    printf("EX | srcA=%d srcB=%d\n", srcA, srcB);
     switch (instr.op) {
         case Opcode::ADD: {
-            // 
-            regs_[instr.rd] = regs_[instr.rs1] + regs_[instr.rs2];
+            int32_t alu_out = srcA + srcB;
+            ex_mem_next.valid = true;
+            ex_mem_next.rd = instr.rd;
+            ex_mem_next.alu_result = alu_out;
+            ex_mem_next.reg_write = true;
+            ex_mem_next.instr = instr;
             break;
         }
         case Opcode::SUB: {
-            regs_[instr.rd] = regs_[instr.rs1] - regs_[instr.rs2];
+            int32_t alu_out = srcA - srcB;
+            ex_mem_next.valid = true;
+            ex_mem_next.rd = instr.rd;
+            ex_mem_next.alu_result = alu_out;
+            ex_mem_next.reg_write = true;
+            ex_mem_next.instr = instr;
+
             break;
         }
-        case Opcode::ADDI: { // if you have it
-            regs_[instr.rd] = regs_[instr.rs1] + instr.imm;
+        case Opcode::ADDI: {
+            int32_t alu_out = srcA + instr.imm;
+            ex_mem_next.valid = true;
+            ex_mem_next.rd = instr.rd;
+            ex_mem_next.alu_result = alu_out;
+            ex_mem_next.reg_write = true;
+            ex_mem_next.instr = instr;
+
             break;
         }
+
         case Opcode::LOAD: {
             // Define your addressing convention.
             // Here: effective address = regs[rs1] + imm, measured in WORD indices.
-            uint32_t addr = (uint32_t)(regs_[instr.rs1] + instr.imm);
+            uint32_t addr = (uint32_t)(srcA + instr.imm);
             int32_t val;
             int latency = cache_.load(addr, val);
 
             printf("LOAD latency: %d cycles\n", latency);
             if (latency == 1) {
-                regs_[instr.rd] = val;
+                mem_wb_next.valid = true;
+                mem_wb_next.rd = instr.rd;
+                mem_wb_next.writeback_value = val;
+                mem_wb_next.reg_write = true;
             } else {
                 // Start a pending memory operation
                 mem_pending_   = true;
@@ -171,8 +238,8 @@ void CPU::execute(const Instruction& instr) {
             break;
         }
         case Opcode::STORE: {
-            uint32_t addr = (uint32_t)(regs_[instr.rs1] + instr.imm);
-            int32_t val = regs_[instr.rd];
+            uint32_t addr = (uint32_t)(srcA + instr.imm);
+            int32_t val = id_ex_.store_val;
 
             int latency = cache_.store(addr, val);
             printf("STORE latency: %d cycles\n", latency);
@@ -185,7 +252,7 @@ void CPU::execute(const Instruction& instr) {
         }
 
         case Opcode::BEQ: {
-            if (regs_[instr.rs1] == regs_[instr.rs2]) {
+            if (srcA == srcB) {
                 branch_taken_ = true;
                 branch_target_ = instr.pc + instr.imm;
             }
@@ -217,7 +284,6 @@ bool CPU::writes_rd(const Instruction& instr) {
         case Opcode::ADDI:
         case Opcode::LOAD:
         case Opcode::JAL:
-        case Opcode::BEQ:
             return true;
         default:
             return false;
