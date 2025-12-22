@@ -63,6 +63,7 @@ void CPU::step() {
     }
 
     bool mem_stall = false;
+
     // handle memory operations
     if (mem_pending_) {
         mem_stall = true;
@@ -79,7 +80,6 @@ void CPU::step() {
                 mem_wb_next.writeback_value = mem_load_val_;
                 mem_wb_next.reg_write = true;
                 mem_wb_next.instr = mem_instr_;
-                printf("MEMDONE | load ready for WB r%d = %d\n", mem_instr_.rd, (int)mem_load_val_);
             } else {
             // STORE completion: retire it somehow.
             // Easiest: push a dummy WB entry so retirement logic stays uniform.
@@ -94,7 +94,7 @@ void CPU::step() {
     bool flush = false;
     // handle branch
     if (branch_taken_) {
-        printf("FLUSH | branch taken → PC=%d\n", branch_target_);
+        printf("FLUSH | branch taken at PC=%d\n", branch_target_);
         pc_ = branch_target_;
         flush = true;
         branch_taken_ = false;
@@ -102,9 +102,12 @@ void CPU::step() {
     }
 
     if (flush) {
-        if_id_next.valid = false;
-        id_ex_next.valid = false;
+        if_id_ = IF_ID{};
+        id_ex_ = ID_EX{};
+        if_id_next = IF_ID{};
+        id_ex_next = ID_EX{};
     }
+
     // hazard detection for loads
     bool stall = false;
 
@@ -116,6 +119,7 @@ void CPU::step() {
             stall_count_++;
         }
     }
+    
     // mem: move EX result to WB
     if (!mem_stall && ex_mem_.valid && ex_mem_.reg_write) {
         printf("MEM | forwarding r%d -> %d\n", ex_mem_.rd, ex_mem_.alu_result);
@@ -247,9 +251,10 @@ void CPU::execute(EX_MEM& ex_mem_next) {
             // Define your addressing convention.
             // Here: effective address = regs[rs1] + imm, measured in WORD indices.
             uint32_t addr = (uint32_t)(srcA + instr.imm);
+
             int32_t val;
             int latency = cache_.load(addr, val);
-
+            printf("LOAD addr=%d\n", addr);
             printf("LOAD latency: %d cycles\n", latency);
             if (latency == 1) {
                 ex_mem_next.valid = true;

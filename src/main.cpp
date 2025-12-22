@@ -10,6 +10,18 @@
 // THINGS I WANT TO ADD:
 // better cache -> last recently used eviction
 
+std::vector<Instruction> generate_cache_test_program() {
+    std::vector<Instruction> program;
+
+    for (int i = 0; i < 40; ++i) {
+        program.push_back({Opcode::LOAD, 1, 0, 0, i}); 
+    }
+
+    // End program
+    program.push_back({Opcode::HALT});
+    return program;
+}
+
 int main() {
 
     using Op = Opcode;
@@ -19,15 +31,11 @@ int main() {
     {Opcode::ADDI,  3, 0, 0, 7},  // x0 = 
     {Opcode::STORE, 3, 0, 0, 0},  // mem[0] = 1
     {Opcode::LOAD,  1, 0, 0, 0},  // x1 = mem[0]
-    {Opcode::LOAD,  2, 0, 0, 0},  // x1 = x1 + 1
-    {Opcode::ADD,   4, 1, 1, 0},  // x2 = x1 + x1
-    {Opcode::LOAD,  5, 0, 0, 0},  // x3 = x2 + 1
-    {Opcode::ADDI,  6, 5, 0, 1},  // x4 = x3 + 1
-    {Opcode::ADD,  7, 3, 0, 0},  // x5 = x4 + 1
+
     {Opcode::HALT}
     };
 
-    CPU cpu(prog);
+    CPU cpu(generate_cache_test_program());
     cpu.run();
 
     // === Assertions  ===
