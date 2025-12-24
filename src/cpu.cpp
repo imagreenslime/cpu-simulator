@@ -23,7 +23,7 @@ void CPU::run(int max_steps) {
 
     while (running_) {
         if (steps++ >= max_steps) {
-            throw std::runtime_error("Max steps exceeded (possible infinite loop)");
+            throw std::runtime_error("Max steps exceeded");
         }
         step();
     }
@@ -305,7 +305,7 @@ void CPU::execute(EX_MEM& ex_mem_next) {
             halt_seen_ = true;   // stop fetching new instructions
             break;
         }
-        case Opcode::NOP:
+        case Opcode::NOP: 
         default:
             // treat unknown as NOP or throw
             break;

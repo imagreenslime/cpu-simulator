@@ -8,7 +8,8 @@
 #include "cpu.cpp"
 
 // THINGS I WANT TO ADD:
-// better cache -> last recently used eviction
+// Multi-Level Cache Hierarchy
+// Convert to Verilog or SystemVerilog
 
 std::vector<Instruction> generate_cache_test_program() {
     std::vector<Instruction> program;
@@ -28,24 +29,23 @@ int main() {
     printf("hello cpu test\n\n");
 
     std::vector<Instruction> prog = {
-    {Opcode::ADDI,  3, 0, 0, 7},  // x0 = 
-    {Opcode::STORE, 3, 0, 0, 0},  // mem[0] = 1
-    {Opcode::LOAD,  1, 0, 0, 0},  // x1 = mem[0]
+    {Opcode::ADDI,  3, 0, 0, 7},
+    {Opcode::STORE, 3, 0, 0, 0},  
+    {Opcode::LOAD,  1, 0, 0, 0},  
 
     {Opcode::HALT}
     };
 
-    CPU cpu(generate_cache_test_program());
+    CPU cpu(prog);
     cpu.run();
 
-    // === Assertions  ===
 
     printf("All tests passed.\n\n");
     int32_t val = cpu.mem_word(0);
     printf("memory[0] = %d\n", val);
 
 
-    // === Optional debug dump ===
+    // debug dump 
     printf("Register Dump.\n\n");
     for (int i = 0; i < 8; i++) {
         printf("x%d = %d\n", i, cpu.reg(i));

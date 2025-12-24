@@ -1,8 +1,8 @@
 #pragma once
 #include <vector>
 #include <cstdint>
-#include "isa.hpp"   // Instruction, Opcode, fields (rd, rs1, rs2, imm), etc.
-#include "cache.hpp" // Cache class
+#include "isa.hpp"   
+#include "cache.hpp" 
 #include "pipeline.hpp"
 
 class CPU {

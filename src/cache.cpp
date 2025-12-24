@@ -27,12 +27,12 @@ Cache::CacheLine* Cache::find_line(CacheSet& set, uint32_t tag) {
 }
 
 Cache::CacheLine* Cache::find_victim(CacheSet& set) {
-    // Find invalid first
+    // find invalid
     for (auto& line : set.ways) {
         if (!line.valid) return &line;
     }
 
-    // Else use LRU (lowest last_used)
+    // use LRU
     CacheLine* lru = &set.ways[0];
     for (auto& line : set.ways) {
         if (line.last_used < lru->last_used) {
