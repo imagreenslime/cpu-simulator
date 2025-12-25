@@ -1,14 +1,15 @@
 module instruction_memory (
-    input wire [7:0] address,
-    output wire [7:0] instruction
+    input wire [31:0] address,
+    output wire [31:0] instruction
 );
 
-    reg [7:0] memory [0:255];
+    reg [31:0] memory [0:255];
     initial begin
         // Initialize the memory with some instructions
-        memory[0] = 8'b00000001;
-        memory[1] = 8'b00000010;
-        memory[2] = 8'b00000011;
+        memory[0] = 32'h23000001;
+        memory[1] = 32'h28000002;
+        memory[2] = 32'h2a000003;
+        memory[3] = 32'h60000004; //HALT
         // Add more instructions as needed
         
     end
