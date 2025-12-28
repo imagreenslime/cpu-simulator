@@ -1,52 +1,50 @@
-# CPU Pipeline + Cache Simulator in C++ + Verilog (in progress)
+# Pipelined RISC CPU in Verilog
 
-A cycle-accurate CPU simulator written in C++ that models a 5-stage pipelined processor integrated with a set-associative cache. The simulator focuses on realistic pipeline control, hazard handling, and memory latency effects.
+This project implements a simplified, MIPS-like 5-stage pipelined CPU entirely in Verilog HDL, designed with:
 
----
-
-## Overview
-
-This project implements a simplified RISC-style CPU with a classic 5-stage pipeline:
-
+Accurate instruction flow through classic pipeline stages:
 IF → ID → EX → MEM → WB
 
-The pipeline is connected to a configurable set-associative cache that introduces realistic memory access latency. Together, they allow exploration of pipeline hazards, stalls, forwarding, and cache behavior.
+The Verilog model was developed after a full-featured C++ simulator used to prototype pipeline behavior and cache performance.
 
 ---
 
-## Features
+## Verilog Features
+- 5-stage CPU Pipeline
+- Load-use hazard detection and stalling
+- Data forwarding (EX→EX and MEM→EX paths)
+- Pipeline flush on control hazards
+- Waveform-debuggable control signals
 
-### CPU Pipeline
-- 5-stage pipeline (IF, ID, EX, MEM, WB)
-- Load-use hazard detection with stall insertion
-- Data forwarding (EX→EX, WB→EX)
-- Branch handling with pipeline flush
-- Instruction retirement tracking
-- CPI calculation
-- Register x0 hardwired to zero
-
-### Cache
-- n-way set-associative cache (configurable sets and associativity)
-- LRU (Least Recently Used) eviction policy
-- Word-addressed memory model
-- Write-through store policy
-- Simulated hit/miss latency
-- Cache hit/miss statistics
-
----
+## Verification
+- Testbenches for each pipeline feature
+- Assembly-style test programs (in Verilog hex format)
+- Simulated using Icarus
+- Observed via GTKWave waveform viewer
 
 ## Instruction Set
-
 - ADD, SUB, ADDI
 - LOAD, STORE
 - BEQ, JAL
 - NOP, HALT
 
----
+## C++ Reference Model (Pre-Verilog Phase)
+- The initial design phase included a C++ cycle-accurate simulator with:
+- Instruction-level simulation
+- Set-associative cache with LRU
+- CPI and hazard statistics
+- This model served as a reference for RTL validation
 
-## Build and Run
+## Build and Run Verilog
+```bash
+iverilog -o cpu_test.vvp testbenches/test_cpu.v
+vvp cpu_test.vvp
+```
+Add instructions in verilog/modules/instruction_memory.v
 
+## Build and Run C++
 ```bash
 cd src
 g++ main.cpp -o sim
 ./sim
+```
