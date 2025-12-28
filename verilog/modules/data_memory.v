@@ -6,7 +6,7 @@ module data_memory (
     input wire [31:0] write_data,
     output reg [31:0] read_data
 );
-
+    
     // 1K words = 4KB memory
     reg [31:0] memory [0:1023];
 
@@ -22,6 +22,7 @@ module data_memory (
     always @(*) begin
         //$display("Data Memory Access - Read: %b, Write: %b, Address: %0d, Write Data: %0d", mem_read, mem_write, address, write_data);  
         if (mem_read) begin
+            $display("Data Memory Access - Address: %0d, data: %0d", address, memory[address]);  
             read_data = memory[address]; // word-aligned
         end else begin
             read_data = 32'd0;
@@ -31,8 +32,10 @@ module data_memory (
     // WRITE logic (synchronous)
     always @(posedge clk) begin
         if (mem_write) begin
+            $display("Memory write at address: %0d, data: %0d", address, write_data);
+
             memory[address] <= write_data; // word-aligned
-        end
+        end 
     end
 
 endmodule

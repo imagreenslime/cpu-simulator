@@ -74,6 +74,9 @@ module execute (
             4'b0110: begin
                 halt = 1;  // HALT
             end
+            4'b1111: begin
+            // NOP: do nothing (defaults already zeroed)
+            end
         endcase
 
     end

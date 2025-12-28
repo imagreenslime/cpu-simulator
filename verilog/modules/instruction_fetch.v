@@ -5,6 +5,7 @@ module instruction_fetch (
     input wire clk,
     input wire reset,
     input wire load_en,
+    input wire en,
     input wire [31:0] pc_next,
     output wire [31:0] current_instruction,
     output wire [31:0] current_pc
@@ -14,6 +15,7 @@ module instruction_fetch (
     pc program_counter (
         .clk(clk),
         .reset(reset),
+        .en(en),
         .load_en(load_en),
         .d(pc_next),
         .q(current_pc)
