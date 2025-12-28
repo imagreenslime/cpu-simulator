@@ -12,11 +12,12 @@ module pc (
         if (reset) begin
             q <= 32'h00000000;
         end
-        else if (!en) begin
-            q <= q;                // HOLD (stall)
-        end
         else if (load_en ) begin
             q <= d;
+            $display("changing PC: %0d", d);
+        end
+        else if (!en) begin
+            q <= q;                // HOLD (stall)
         end
         else begin
             q <= q + 1;

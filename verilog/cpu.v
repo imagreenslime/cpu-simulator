@@ -21,11 +21,6 @@ module cpu (
     wire [31:0] mem_data_out;
     wire [31:0] mem_data_in;
     wire [31:0] mem_addr;
-
-    wire reg_write_en;
-    wire mem_read_en, mem_write_en;
-    wire branch_taken;
-    wire [15:0] branch_target;
     // Pipelining
     
     // from fetch
@@ -87,23 +82,26 @@ module cpu (
 
     // MEM phase
     
+    reg [31:0] mem_wb_pc;
     reg [3:0] mem_wb_rd;
     reg [31:0] mem_wb_rd_value;
     reg mem_wb_reg_write_en; 
 
-    // stalling?
+    // stalling
     wire load_in_ex = (id_ex_opcode == 4'b0011); // LOAD opcode
     wire load_use_hazard =
     load_in_ex &&
     (id_ex_rd != 4'd0) &&
     ((id_ex_rd == id_ex_rs1_w) || (id_ex_rd == id_ex_rs2_w));
 
+    // flushing
+    wire flush = ex_mem_branch_taken;
+    
     // store forward
     wire [31:0] store_data_fixed =
         (ex_mem_write_en && mem_wb_reg_write_en && (mem_wb_rd != 0) && (mem_wb_rd == ex_mem_rs2))
         ? mem_wb_rd_value
         : ex_mem_rs2_val;
-
     // PC logic for fetch
     wire pc_load_en = ex_mem_branch_taken;
     wire [31:0] pc_next = {16'd0, ex_mem_branch_target};
@@ -120,7 +118,7 @@ module cpu (
     );
 
     always @(posedge clk) begin
-        if (reset) begin
+        if (reset || flush) begin
             // for exe now
             if_id_instr <= 32'b0;
             if_id_pc    <= 32'b0;
@@ -165,7 +163,7 @@ module cpu (
     localparam [3:0] OP_NOP = 4'b1111;
 
     always @(posedge clk) begin
-        if (reset) begin
+        if (reset || flush) begin
             id_ex_opcode   <= 4'b0;
             id_ex_rs1      <= 4'b0;
             id_ex_rs2      <= 4'b0;
@@ -196,17 +194,17 @@ module cpu (
         end
     end
  
-    // ======== EX FORWARDING (fixes add-after-load after the 1-cycle stall) ========
+    // ex forwarding
     wire exmem_writes = ex_mem_reg_write_en && (ex_mem_rd != 0);
     wire exmem_is_load = ex_mem_read_en;
 
     wire memwb_writes = mem_wb_reg_write_en && (mem_wb_rd != 0);
 
-    // Forward for rs1
+    // forwarding for rs1
     wire fwd_a_exmem = exmem_writes && !exmem_is_load && (ex_mem_rd == id_ex_rs1);
     wire fwd_a_memwb = memwb_writes && (mem_wb_rd == id_ex_rs1) && !fwd_a_exmem;
 
-    // Forward for rs2
+    // forwarding for rs2
     wire fwd_b_exmem = exmem_writes && !exmem_is_load && (ex_mem_rd == id_ex_rs2);
     wire fwd_b_memwb = memwb_writes && (mem_wb_rd == id_ex_rs2) && !fwd_b_exmem;
 
@@ -244,7 +242,7 @@ module cpu (
     );
     
     always @(posedge clk) begin
-        if (reset) begin
+        if (reset || flush) begin
             ex_mem_pc <= 32'd0;
             ex_mem_rd_value <= 32'd0;
             ex_mem_rd <= 4'd0;
@@ -292,6 +290,7 @@ module cpu (
 
     always @(posedge clk) begin
         if (reset) begin
+            mem_wb_pc <= 32'd0;
             mem_wb_rd <= 4'd0;
             mem_wb_rd_value <= 32'd0;
             mem_wb_reg_write_en <= 1'd0;
@@ -301,12 +300,11 @@ module cpu (
             end else begin
                 mem_wb_rd_value <= ex_mem_rd_value;
             end
+            mem_wb_pc <= ex_mem_pc;
             mem_wb_rd <= ex_mem_rd;
             mem_wb_reg_write_en <= ex_mem_reg_write_en;
         end
     end
-    
-    // if load store to register somehow
 
     
     always @(posedge clk) begin
@@ -315,8 +313,8 @@ module cpu (
         $display("Decode Phase: pc: %0d, op: %0d, rd: %0d, rs1: %0d, rs2: %0d, imm: %0d, rs1_val: %0d, rs2_val: %0d",id_ex_pc, id_ex_opcode, id_ex_rd, id_ex_rs1, id_ex_rs2, id_ex_imm, id_ex_rs1_val, id_ex_rs2_val);
         $display("Execute Phase: pc: %0d, rd: %0d, rd val: %0d, mem_addr: %0d, branch_taken: %0d, branch_targ: %0d, data_out: %0d, halt: %0d", ex_mem_pc, ex_mem_rd, ex_mem_rd_value, ex_mem_addr, ex_mem_branch_taken, ex_mem_branch_target, ex_mem_data_out, ex_mem_halt);
         $display("Execute Phase: reg write: %0d, read enable: %0d, write enable: %0d, rs2 val: %0d", ex_mem_reg_write_en, ex_mem_read_en, ex_mem_write_en, ex_mem_rs2_val);
-        $display("Memory phase: rd val: %0d, rd: %0d, write en: %0d", mem_wb_rd_value, mem_wb_rd, mem_wb_reg_write_en);
-        $display("store data: %0d", store_data_fixed);
+        $display("Memory phase: pc: %0d, rd val: %0d, rd: %0d, write en: %0d", mem_wb_pc, mem_wb_rd_value, mem_wb_rd, mem_wb_reg_write_en);
+         $display("============== END CYCLE ==============");
         if (ex_mem_halt) begin
             ex_mem_halt_final <= ex_mem_halt;
         end
